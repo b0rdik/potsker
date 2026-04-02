@@ -9,6 +9,7 @@ const usersDb = require('./users');
 const poker = require('./lib/poker');
 
 const app = express();
+app.set('trust proxy', 1); // за nginx: корректный IP и express-rate-limit
 const server = http.createServer(app);
 function parseCorsOrigin(val) {
   if (!val) return false;
