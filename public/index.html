@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Texas Hold'em Poker</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- AUTH SCREEN -->
+  <div id="auth" class="screen active">
+    <div class="lobby-container">
+      <div class="logo">
+        <div class="logo-icon">
+          <span class="suit-icon">&#9824;</span>
+          <span class="suit-icon red">&#9829;</span>
+        </div>
+        <h1>Texas Hold'em</h1>
+        <p class="subtitle">Онлайн покер с друзьями</p>
+      </div>
+
+      <div class="auth-form">
+        <div class="auth-tabs">
+          <button class="auth-tab active" onclick="switchAuthTab('login')">Вход</button>
+          <button class="auth-tab" onclick="switchAuthTab('register')">Регистрация</button>
+        </div>
+
+        <div id="loginForm">
+          <input type="text" id="loginName" placeholder="Имя" maxlength="15" autocomplete="username">
+          <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
+          <button class="btn btn-primary" onclick="doLogin()">Войти</button>
+        </div>
+
+        <div id="registerForm" style="display: none;">
+          <input type="text" id="regName" placeholder="Имя (2-15 символов)" maxlength="15" autocomplete="username">
+          <input type="password" id="regPassword" placeholder="Пароль (мин. 4 символа)" autocomplete="new-password">
+          <input type="password" id="regPasswordConfirm" placeholder="Подтвердите пароль" autocomplete="new-password">
+          <button class="btn btn-primary" onclick="doRegister()">Создать аккаунт</button>
+        </div>
+
+        <p id="authError" class="error-text"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for avatar -->
+  <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(this)">
+
+  <!-- LOBBY -->
+  <div id="lobby" class="screen">
+    <div class="lobby-container">
+      <div class="lobby-user-info" id="lobbyUserInfo"></div>
+
+      <div class="lobby-form">
+        <div class="settings-group">
+          <label class="settings-label">Начальные фишки</label>
+          <input type="number" id="buyInInput" value="1000" min="100" max="100000" step="100" autocomplete="off">
+        </div>
+
+        <div class="settings-group">
+          <label class="settings-label">Блайнды (малый / большой)</label>
+          <div class="blinds-inputs">
+            <input type="number" id="sbInput" value="10" min="1" max="10000" step="1" autocomplete="off">
+            <span class="blinds-slash">/</span>
+            <input type="number" id="bbInput" value="20" min="2" max="20000" step="1" autocomplete="off">
+          </div>
+        </div>
+
+        <button id="btnCreate" class="btn btn-primary">
+          <span class="btn-icon">+</span>
+          Создать комнату
+        </button>
+
+        <div class="divider"><span>или</span></div>
+
+        <div class="join-row">
+          <input type="text" id="roomCode" placeholder="Код комнаты" maxlength="4" autocomplete="off" style="text-transform: uppercase">
+          <button id="btnJoin" class="btn btn-secondary">Войти</button>
+          <button class="btn btn-secondary" onclick="spectateRoom()" title="Наблюдать">👁</button>
+        </div>
+
+        <p id="lobbyError" class="error-text"></p>
+      </div>
+
+      <button class="btn btn-secondary" onclick="toggleLeaderboard()" style="margin-bottom: 16px; width: 100%;">🏆 Таблица лидеров</button>
+
+      <!-- Leaderboard modal -->
+      <div class="leaderboard-overlay" id="leaderboardOverlay" style="display: none;" onclick="toggleLeaderboard()">
+        <div class="leaderboard-modal" onclick="event.stopPropagation()">
+          <h3>🏆 Таблица лидеров</h3>
+          <div id="leaderboardList"></div>
+          <button class="btn btn-secondary" onclick="toggleLeaderboard()" style="margin-top: 12px;">Закрыть</button>
+        </div>
+      </div>
+
+      <div class="rules-hint">
+        <h3>Правила Texas Hold'em</h3>
+        <div class="rules-grid">
+          <div class="rule-item"><span class="rule-rank">1</span> Роял-флеш</div>
+          <div class="rule-item"><span class="rule-rank">2</span> Стрит-флеш</div>
+          <div class="rule-item"><span class="rule-rank">3</span> Каре</div>
+          <div class="rule-item"><span class="rule-rank">4</span> Фулл-хаус</div>
+          <div class="rule-item"><span class="rule-rank">5</span> Флеш</div>
+          <div class="rule-item"><span class="rule-rank">6</span> Стрит</div>
+          <div class="rule-item"><span class="rule-rank">7</span> Тройка</div>
+          <div class="rule-item"><span class="rule-rank">8</span> Две пары</div>
+          <div class="rule-item"><span class="rule-rank">9</span> Пара</div>
+          <div class="rule-item"><span class="rule-rank">10</span> Старшая карта</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME TABLE -->
+  <div id="game" class="screen">
+    <div class="game-header">
+      <div class="room-info">
+        <span class="room-code" id="displayRoomCode"></span>
+        <button id="btnCopyCode" class="btn-small" title="Копировать код">&#128203;</button>
+        <div class="volume-control">
+          <button id="btnMute" class="btn-small" onclick="toggleVolumeSlider()" title="Звук">&#128266;</button>
+          <div class="volume-popup" id="volumePopup" style="display: none;">
+            <input type="range" id="volumeSlider" min="0" max="100" value="35" class="volume-slider" oninput="setVolume(this.value)">
+          </div>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div class="blinds-info" id="blindsInfo"></div>
+        <div class="total-chips-info" id="totalChipsInfo"></div>
+      </div>
+      <button id="btnLeave" class="btn-small btn-danger" onclick="leaveTable()">Выйти со стола</button>
+    </div>
+
+    <div class="table-area">
+      <div class="table-stage">
+      <div class="poker-table">
+        <div class="table-felt">
+          <!-- Community cards -->
+          <div class="community-cards" id="communityCards"></div>
+          <!-- Pot -->
+          <div class="pot-display" id="potDisplay"></div>
+          <!-- Showdown: winners summary (table) -->
+          <div class="showdown-summary" id="showdownSummary" hidden></div>
+          <!-- Phase indicator -->
+          <div class="phase-indicator" id="phaseIndicator"></div>
+        </div>
+        <!-- Deck (outside felt to avoid ellipse clipping) -->
+        <div class="deck-display" id="deckDisplay" style="display: none;">
+          <div class="deck-stack">
+            <div class="card card-back card-deck"></div>
+            <div class="card card-back card-deck deck-2"></div>
+            <div class="card card-back card-deck deck-3"></div>
+          </div>
+          <div class="deck-count" id="deckCount">52</div>
+        </div>
+      </div>
+
+      <!-- Player seats (same box as felt — positions % от размера стола, не всего экрана) -->
+      <div class="seats" id="seats"></div>
+      </div>
+    </div>
+
+    <!-- History button + modal -->
+    <button class="history-btn" onclick="toggleHistory()">&#128214; История</button>
+    <div class="history-overlay" id="historyOverlay" style="display: none;" onclick="toggleHistory()">
+      <div class="history-modal" onclick="event.stopPropagation()">
+        <h3>История рук</h3>
+        <div class="history-list" id="historyList"><p style="color:var(--text-dim)">Пока нет истории</p></div>
+        <button class="btn btn-secondary" onclick="toggleHistory()" style="margin-top: 12px;">Закрыть</button>
+      </div>
+    </div>
+
+    <!-- Combos button + modal -->
+    <button class="combos-btn" id="btnCombos" onclick="toggleCombos()">&#9830; Комбинации</button>
+    <div class="combos-overlay" id="combosOverlay" style="display: none;" onclick="toggleCombos()">
+      <div class="combos-modal" onclick="event.stopPropagation()">
+        <h3>Комбинации покера</h3>
+        <div class="combos-list">
+
+          <div class="combo-row">
+            <span class="combo-rank">1</span>
+            <span class="combo-name">Роял-флеш</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs red"><div class="card-rank">A</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">K</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">Q</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">J</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">10</div><div class="card-suit">&hearts;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">2</span>
+            <span class="combo-name">Стрит-флеш</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs"><div class="card-rank">9</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">8</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">7</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">6</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">5</div><div class="card-suit">&spades;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">3</span>
+            <span class="combo-name">Каре</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs"><div class="card-rank">K</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">K</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">K</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">K</div><div class="card-suit">&clubs;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">3</div><div class="card-suit">&diams;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">4</span>
+            <span class="combo-name">Фулл-хаус</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs red"><div class="card-rank">Q</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">Q</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">Q</div><div class="card-suit">&clubs;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">7</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">7</div><div class="card-suit">&hearts;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">5</span>
+            <span class="combo-name">Флеш</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs red"><div class="card-rank">A</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">J</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">8</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">5</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">3</div><div class="card-suit">&diams;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">6</span>
+            <span class="combo-name">Стрит</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs"><div class="card-rank">10</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">9</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">8</div><div class="card-suit">&clubs;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">7</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">6</div><div class="card-suit">&spades;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">7</span>
+            <span class="combo-name">Тройка</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs red"><div class="card-rank">J</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">J</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">J</div><div class="card-suit">&clubs;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">9</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">4</div><div class="card-suit">&clubs;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">8</span>
+            <span class="combo-name">Две пары</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs"><div class="card-rank">A</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">A</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">8</div><div class="card-suit">&clubs;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">8</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">5</div><div class="card-suit">&spades;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">9</span>
+            <span class="combo-name">Пара</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs red"><div class="card-rank">10</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">10</div><div class="card-suit">&clubs;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">K</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">7</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">2</div><div class="card-suit">&clubs;</div></div>
+            </div>
+          </div>
+
+          <div class="combo-row">
+            <span class="combo-rank">10</span>
+            <span class="combo-name">Старшая карта</span>
+            <div class="combo-cards">
+              <div class="card card-front card-xs"><div class="card-rank">A</div><div class="card-suit">&spades;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">J</div><div class="card-suit">&hearts;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">8</div><div class="card-suit">&clubs;</div></div>
+              <div class="card card-front card-xs red"><div class="card-rank">5</div><div class="card-suit">&diams;</div></div>
+              <div class="card card-front card-xs"><div class="card-rank">2</div><div class="card-suit">&spades;</div></div>
+            </div>
+          </div>
+
+        </div>
+        <button class="btn btn-secondary" onclick="toggleCombos()" style="margin-top: 16px;">Закрыть</button>
+      </div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar" id="actionBar" style="display: none;">
+      <!-- Raise row -->
+      <div class="raise-row" id="raiseRow" style="display: none;">
+        <div class="raise-presets" id="raisePresets"></div>
+        <div class="raise-slider-row">
+          <input type="range" id="raiseSlider" min="0" max="1000" step="1">
+          <input type="number" id="raiseInput" class="raise-input" min="0" max="1000">
+        </div>
+      </div>
+      <!-- Action buttons -->
+      <div class="action-buttons">
+        <button id="btnFold" class="btn btn-fold" onclick="doAction('fold')">Фолд</button>
+        <button id="btnCheck" class="btn btn-check" onclick="doAction('check')">Чек</button>
+        <button id="btnCall" class="btn btn-call" onclick="doAction('call')">
+          Колл <span id="callAmount"></span>
+        </button>
+        <button id="btnRaise" class="btn btn-raise" onclick="doAction('raise')">
+          Рейз <span id="raiseAmount"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Waiting overlay -->
+    <div class="waiting-overlay" id="waitingOverlay" style="display: none;">
+      <div class="waiting-content">
+        <h2>Ожидание игроков...</h2>
+        <p>Код комнаты: <strong id="waitingCode"></strong></p>
+        <p id="playerCount"></p>
+        <div class="ready-list" id="readyList"></div>
+        <button id="btnReady" class="btn btn-primary btn-large" onclick="toggleReady()">
+          Готов
+        </button>
+        <p class="waiting-total" id="waitingTotal"></p>
+        <div id="rebuySection" class="rebuy-section" style="display: none;">
+          <div class="rebuy-label">Ребай (макс: <span id="rebuyMax">1000</span>)</div>
+          <div class="rebuy-row">
+            <input type="number" id="rebuyAmount" placeholder="Сумма" min="1" step="100" autocomplete="off">
+            <button class="btn btn-secondary" onclick="doRebuy()">Докупить</button>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-leave-waiting" onclick="leaveTable()">Выйти со стола</button>
+      </div>
+    </div>
+
+    <!-- Profile modal -->
+    <div class="profile-overlay" id="profileOverlay" style="display: none;" onclick="closeProfile()">
+      <div class="profile-modal" onclick="event.stopPropagation()">
+        <div class="profile-header" id="profileHeader"></div>
+        <div class="profile-stats" id="profileStats"></div>
+        <button class="btn btn-secondary" onclick="closeProfile()" style="margin-top: 12px;">Закрыть</button>
+      </div>
+    </div>
+
+    <!-- Showdown overlay -->
+    <div class="showdown-overlay" id="showdownOverlay" style="display: none;">
+      <div class="showdown-content" id="showdownContent"></div>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-panel" id="chatPanel">
+      <button class="chat-toggle-btn" onclick="toggleChat()">💬</button>
+      <div class="chat-body" id="chatBody" style="display: none;">
+        <div class="chat-header">
+          <span>Чат</span>
+          <button class="chat-close" onclick="toggleChat()">&times;</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty">Начните общение!</div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Написать..." maxlength="200" autocomplete="off">
+          <button class="chat-send" onclick="sendChat()">&#10148;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="sounds.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

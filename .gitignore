@@ -1,0 +1,7 @@
+node_modules/
+data/users.json
+.DS_Store
+.env
+.env.*
+.tmp-smoke-data/
+artifacts-e2e/
