@@ -196,6 +196,11 @@ document.getElementById('btnCopyCode').onclick = () => {
 };
 
 function showGame(code) {
+  resetClientShowdownState();
+  prevHandNumber = 0;
+  prevPhase = '';
+  prevCommunityCount = 0;
+  wasMyTurn = false;
   document.getElementById('auth').classList.remove('active');
   document.getElementById('lobby').classList.remove('active');
   document.getElementById('game').classList.add('active');
@@ -265,6 +270,13 @@ socket.on('player-action', (data) => {
 // Player left table notification
 socket.on('player-left', (data) => {
   addChatMessage('Система', `${data.name} покинул стол (${data.chips} фишек)`, true);
+});
+
+socket.on('player-rebuy', (data) => {
+  const name = data.name || '?';
+  const amount = data.amount ?? 0;
+  showRebuyToast(name, amount);
+  addChatMessage('Система', `${name} докупил ${amount} фишек`, true);
 });
 
 socket.on('game-over', (data) => {
@@ -923,6 +935,25 @@ function doRebuy() {
   });
 }
 
+// ======== REBUY TOAST (все видят докуп) ========
+
+function showRebuyToast(name, amount) {
+  const host = document.getElementById('rebuyToastHost');
+  if (!host) return;
+  const el = document.createElement('div');
+  el.className = 'rebuy-toast';
+  el.setAttribute('role', 'status');
+  el.innerHTML = `
+    <span class="rebuy-toast-label">Докуп</span>
+    <div class="rebuy-toast-main"><strong>${esc(name)}</strong> добавил <span class="rebuy-toast-amt">+${amount}</span> фишек</div>
+  `;
+  host.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('rebuy-toast--out');
+    setTimeout(() => el.remove(), 480);
+  }, 5200);
+}
+
 // ======== ACTION NOTIFICATIONS ========
 
 function showActionNotification(playerIndex, text) {
@@ -996,6 +1027,22 @@ function clearShowdownTableUI() {
     el.innerHTML = '';
     el.classList.remove('showdown-summary--in');
   }
+}
+
+/** Сброс локального UI вскрытия при смене комнаты (иначе тянется прошлая раздача). */
+function resetClientShowdownState() {
+  if (showdownCountdownTimer) {
+    clearInterval(showdownCountdownTimer);
+    showdownCountdownTimer = null;
+  }
+  lastShowdownData = null;
+  showdownWinnersVisible = false;
+  showdownCountdownRemaining = 0;
+  showdownWinSoundPlayed = false;
+  showdownRevealPending = false;
+  clearShowdownTableUI();
+  const resultsDiv = document.getElementById('showdownResults');
+  if (resultsDiv) resultsDiv.innerHTML = '';
 }
 
 function syncShowdownSummaryVisibility(state, phase) {

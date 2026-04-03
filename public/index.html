@@ -34,7 +34,7 @@
 
         <div id="registerForm" style="display: none;">
           <input type="text" id="regName" placeholder="Имя (2-15 символов)" maxlength="15" autocomplete="username">
-          <input type="password" id="regPassword" placeholder="Пароль (мин. 4 символа)" autocomplete="new-password">
+          <input type="password" id="regPassword" placeholder="Пароль (мин. 8 символов)" autocomplete="new-password">
           <input type="password" id="regPasswordConfirm" placeholder="Подтвердите пароль" autocomplete="new-password">
           <button class="btn btn-primary" onclick="doRegister()">Создать аккаунт</button>
         </div>
@@ -114,6 +114,7 @@
 
   <!-- GAME TABLE -->
   <div id="game" class="screen">
+    <div id="rebuyToastHost" class="rebuy-toast-host" aria-live="polite"></div>
     <div class="game-header">
       <div class="room-info">
         <span class="room-code" id="displayRoomCode"></span>
@@ -364,8 +365,8 @@
 
     <!-- Chat -->
     <div class="chat-panel" id="chatPanel">
-      <button class="chat-toggle-btn" onclick="toggleChat()">💬</button>
-      <div class="chat-body" id="chatBody" style="display: none;">
+      <button class="chat-toggle-btn" onclick="toggleChat()" style="display: none;">💬</button>
+      <div class="chat-body" id="chatBody" style="display: flex;">
         <div class="chat-header">
           <span>Чат</span>
           <button class="chat-close" onclick="toggleChat()">&times;</button>

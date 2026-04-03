@@ -386,7 +386,10 @@ input:focus {
 #game {
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   background: linear-gradient(180deg, #0a0e17 0%, #101828 100%);
+  /* Резерв под шапку, панель действий и отступы — стол подгоняется под высоту, чтобы не вылезать за экран */
+  --game-chrome-h: clamp(210px, 28dvh, 380px);
 }
 
 .game-header {
@@ -477,19 +480,26 @@ input:focus {
   align-items: center;
   justify-content: center;
   position: relative;
-  padding: 24px 24px 88px;
-  min-height: 500px;
+  padding: clamp(6px, 1.2vmin, 20px) clamp(6px, 1.2vmin, 20px) clamp(28px, 5vmin, 72px);
+  min-height: 0;
 }
 
-/* Один bbox: места в % от этого блока — при любом масштабе окна пропорции те же (см. aspect-ratio). */
+/* Один bbox: места в % от этого блока — позиции игроков те же; ширина растёт на больших мониторах и ужимается на низких экранах */
 .table-stage {
   position: relative;
-  /* Как на макете 1020×500; ширина ограничена vw и высотой вьюпорта, чтобы не резать по вертикали */
-  width: min(1020px, 94vw, calc(88vh * 1020 / 500));
+  container-type: inline-size;
+  container-name: poker-table;
+  width: min(
+    1680px,
+    94vw,
+    calc(max(0px, 100dvh - var(--game-chrome-h)) * 1020 / 500),
+    calc(max(0px, 100vh - var(--game-chrome-h)) * 1020 / 500)
+  );
   aspect-ratio: 1020 / 500;
   height: auto;
   flex-shrink: 0;
   overflow: visible;
+  max-width: 100%;
 }
 
 .poker-table {
@@ -498,12 +508,52 @@ input:focus {
   position: relative;
 }
 
+/* Карты и профили внутри стола масштабируются с шириной контейнера (cqw); координаты мест — по-прежнему в % */
+.table-stage .card.card-front:not(.card-mini) {
+  width: clamp(38px, 6.1cqw, 82px);
+  height: clamp(54px, 8.6cqw, 116px);
+  border-radius: clamp(5px, 0.9cqw, 10px);
+}
+
+.table-stage .card.card-front:not(.card-mini) .card-rank {
+  font-size: clamp(14px, 2.2cqw, 24px);
+}
+
+.table-stage .card.card-front:not(.card-mini) .card-suit {
+  font-size: clamp(15px, 2.4cqw, 26px);
+}
+
+.table-stage .card.card-mini {
+  width: clamp(40px, 5.35cqw, 58px);
+  height: clamp(56px, 7.5cqw, 82px);
+  border-radius: clamp(5px, 0.8cqw, 9px);
+}
+
+.table-stage .card.card-mini .card-rank {
+  font-size: clamp(11px, 1.75cqw, 19px);
+}
+
+.table-stage .card.card-mini .card-suit {
+  font-size: clamp(12px, 1.85cqw, 20px);
+}
+
+.table-stage .deck-stack {
+  width: clamp(32px, 4.2cqw, 48px);
+  height: clamp(44px, 5.8cqw, 66px);
+}
+
+.table-stage .card-deck {
+  width: clamp(32px, 4.2cqw, 48px) !important;
+  height: clamp(44px, 5.8cqw, 66px) !important;
+  border-radius: clamp(4px, 0.6cqw, 6px) !important;
+}
+
 .table-felt {
   width: 100%;
   height: 100%;
   background: radial-gradient(ellipse at center, #1f7a45 0%, var(--felt) 50%, var(--felt-dark) 100%);
   border-radius: 9999px;
-  border: 9px solid #2a1a0a;
+  border: clamp(5px, 0.88cqw, 12px) solid #2a1a0a;
   box-shadow:
     0 0 0 12px #1a0f05,
     0 0 0 14px #3a2a15,
@@ -589,6 +639,24 @@ input:focus {
   letter-spacing: 2px;
   position: relative;
   z-index: 2;
+}
+
+.table-stage .community-cards {
+  min-height: clamp(56px, 16cqw, 104px);
+  gap: clamp(4px, 1.1cqw, 12px);
+}
+
+.table-stage .pot-display {
+  font-size: clamp(13px, 3.6cqw, 22px);
+}
+
+.table-stage .phase-indicator {
+  font-size: clamp(10px, 2.5cqw, 16px);
+  letter-spacing: clamp(1px, 0.22cqw, 3px);
+}
+
+.table-stage .deck-count {
+  font-size: clamp(11px, 2.7cqw, 16px);
 }
 
 /* Showdown: compact result on felt */
@@ -1049,6 +1117,83 @@ input:focus {
   min-width: 100px;
 }
 
+/* Докуп: всплывающая метка для всех за столом */
+.rebuy-toast-host {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, 92vw);
+}
+
+.rebuy-toast {
+  background: linear-gradient(145deg, #146a3a 0%, #0a3d22 100%);
+  color: #f8fafc;
+  padding: 14px 22px;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(240, 192, 64, 0.45);
+  animation: rebuyToastIn 0.42s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+.rebuy-toast.rebuy-toast--out {
+  animation: rebuyToastOut 0.45s ease-in forwards;
+}
+
+.rebuy-toast-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(254, 243, 199, 0.95);
+  margin-bottom: 6px;
+}
+
+.rebuy-toast-main {
+  font-size: 16px;
+}
+
+.rebuy-toast-main strong {
+  color: #fef3c7;
+  font-weight: 700;
+}
+
+.rebuy-toast-amt {
+  color: #fde047;
+  font-weight: 800;
+  font-size: 18px;
+}
+
+@keyframes rebuyToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rebuyToastOut {
+  to {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+}
+
 /* Fold animation */
 .seat.is-folded .player-cards {
   transition: opacity 0.4s ease, transform 0.4s ease;
@@ -1188,6 +1333,50 @@ input:focus {
   font-size: 13px;
   color: var(--gold);
   font-weight: 500;
+}
+
+.table-stage .seat-info {
+  padding: clamp(5px, 1.1cqw, 11px) clamp(6px, 1.35cqw, 14px);
+  min-width: clamp(62px, 17cqw, 120px);
+  border-radius: clamp(8px, 1.15cqw, 14px);
+}
+
+.table-stage .player-name {
+  font-size: clamp(10px, 3.1cqw, 17px);
+  max-width: clamp(52px, 22cqw, 130px);
+}
+
+.table-stage .player-chips {
+  font-size: clamp(10px, 2.7cqw, 14px);
+}
+
+.table-stage .bet-amount {
+  font-size: clamp(11px, 2.9cqw, 16px);
+}
+
+.table-stage .badge {
+  width: clamp(18px, 5.2cqw, 28px);
+  height: clamp(14px, 4cqw, 22px);
+  font-size: clamp(7px, 2.1cqw, 11px);
+}
+
+.table-stage .avatar-sm {
+  width: clamp(30px, 8.5cqw, 48px);
+  height: clamp(30px, 8.5cqw, 48px);
+}
+
+.table-stage .avatar-sm .avatar-initial {
+  font-size: clamp(13px, 3.8cqw, 20px);
+}
+
+.table-stage .chip-sm {
+  width: clamp(12px, 3.2cqw, 18px);
+  height: clamp(12px, 3.2cqw, 18px);
+}
+
+.table-stage .chip-lg {
+  width: clamp(16px, 4.2cqw, 24px);
+  height: clamp(16px, 4.2cqw, 24px);
 }
 
 .player-bet {
@@ -2218,12 +2407,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 .chat-send:hover { color: #fff; transform: scale(1.1); }
 
-/* Responsive: стол наследует те же пропорции; только типографика и карты компактнее */
+/* Узкий экран: доп. ужатие кнопок действий (стол уже из формулы выше) */
 @media (max-width: 600px) {
-  .table-stage {
-    width: min(1020px, 96vw, calc(82vh * 1020 / 500));
-  }
-
   .card { width: 40px; height: 58px; }
   .card-rank { font-size: 14px; }
   .card-suit { font-size: 16px; }

@@ -706,8 +706,10 @@ function processActionResult(room, roomCode, playerIndex, playerName, action, am
 const socketUsers = {};
 // Map userId -> roomCode for reconnect
 const userRooms = {};
-// Map userId -> disconnect timeout
+// Map userId -> disconnect timeout (remove from room)
 const disconnectTimers = {};
+// Map userId -> delayed fold if disconnected on their turn (reload grace)
+const disconnectFoldTimers = {};
 
 io.on('connection', (socket) => {
   let currentRoom = null;
@@ -742,6 +744,10 @@ io.on('connection', (socket) => {
         if (disconnectTimers[user.id]) {
           clearTimeout(disconnectTimers[user.id]);
           delete disconnectTimers[user.id];
+        }
+        if (disconnectFoldTimers[user.id]) {
+          clearTimeout(disconnectFoldTimers[user.id]);
+          delete disconnectFoldTimers[user.id];
         }
         // Reconnect: update socket id
         player.id = socket.id;
@@ -824,6 +830,11 @@ io.on('connection', (socket) => {
     player.chips += rebuyAmount;
     player.sittingOut = false;
     broadcastState(room);
+    io.to(currentRoom).emit('player-rebuy', {
+      playerIndex: room.players.indexOf(player),
+      name: player.name,
+      amount: rebuyAmount,
+    });
     callback?.({ ok: true, chips: player.chips });
   });
 
@@ -1001,6 +1012,10 @@ io.on('connection', (socket) => {
         clearTimeout(disconnectTimers[user.id]);
         delete disconnectTimers[user.id];
       }
+      if (disconnectFoldTimers[user.id]) {
+        clearTimeout(disconnectFoldTimers[user.id]);
+        delete disconnectFoldTimers[user.id];
+      }
     }
     removePlayer(room, socket.id);
     socket.leave(currentRoom);
@@ -1025,28 +1040,35 @@ io.on('connection', (socket) => {
     const player = room.players.find(p => p.id === socket.id);
     if (!player) return;
 
-    player.isConnected = false;
     const roomCode = currentRoom;
     const userId = player.userId;
+    const playerName = player.name;
 
-    // If playing and it's their turn, fold
+    if (disconnectFoldTimers[userId]) {
+      clearTimeout(disconnectFoldTimers[userId]);
+      delete disconnectFoldTimers[userId];
+    }
+
+    player.isConnected = false;
+
+    // Не фолдим сразу: перезагрузка страницы переподключает сокет по токену (см. auth).
+    // Если ход этого игрока и он не вернётся — фолд через таймаут, чтобы раздача не зависла.
+    const DISCONNECT_FOLD_MS = 60000;
     if (room.state === 'playing') {
       const pIdx = room.players.indexOf(player);
       if (pIdx === room.currentPlayerIndex && !player.folded && !player.allIn) {
-        const result = handleAction(room, socket.id, 'fold');
-        if (result.finished) {
-          io.to(roomCode).emit('showdown', {
-            winners: result.winners?.map(w => ({
-              name: w.player.name,
-              amount: w.amount,
-              hand: w.hand?.nameRu || '',
-              potName: w.potName || '',
-            })),
-          });
-          saveHandHistory(room, result);
-        }
-      } else if (!player.folded) {
-        player.folded = true;
+        disconnectFoldTimers[userId] = setTimeout(() => {
+          delete disconnectFoldTimers[userId];
+          if (!rooms[roomCode]) return;
+          const r = rooms[roomCode];
+          const pl = r.players.find((x) => x.userId === userId);
+          if (!pl || pl.isConnected) return;
+          if (r.state !== 'playing') return;
+          const idx = r.players.indexOf(pl);
+          if (idx !== r.currentPlayerIndex || pl.folded || pl.allIn) return;
+          const result = handleAction(r, pl.id, 'fold');
+          processActionResult(r, roomCode, idx, playerName, 'fold', undefined, result);
+        }, DISCONNECT_FOLD_MS);
       }
     }
 
@@ -1054,6 +1076,10 @@ io.on('connection', (socket) => {
 
     // Set 2-minute reconnect timer
     disconnectTimers[userId] = setTimeout(() => {
+      if (disconnectFoldTimers[userId]) {
+        clearTimeout(disconnectFoldTimers[userId]);
+        delete disconnectFoldTimers[userId];
+      }
       if (rooms[roomCode]) {
         const r = rooms[roomCode];
         const p = r.players.find(pl => pl.userId === userId);
